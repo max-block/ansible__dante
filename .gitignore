@@ -1,0 +1,4 @@
+.idea
+/hosts.yml
+/playbook.retry
+/tmp

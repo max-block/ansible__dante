@@ -1,0 +1,39 @@
+- hosts: servers
+  vars:
+    - apt_packages: ['ufw', 'dante-server']
+  tasks:
+    - name: Upgrade all packages to the latest version
+      apt: upgrade=yes update_cache=yes cache_valid_time=86400 # 1 day
+
+    - name: Install apt packages
+      apt: pkg={{ apt_packages }} state=latest update_cache=true
+
+    - name: Write danted.conf (no-auth)
+      template: src=danted_noauth.conf dest=/etc/danted.conf
+      when: not proxy_auth
+
+    - name: Write danted.conf (auth)
+      template: src=danted_auth.conf dest=/etc/danted.conf
+      when: proxy_auth
+
+    - name: Create proxy user
+      user: name={{ proxy_user }} password={{ proxy_pass }}
+      when: proxy_auth
+
+    - name: Restart danted service
+      systemd: name=danted state=restarted
+
+    - name: Enable ufw
+      ufw: state=enabled policy=allow direction=outgoing # Remove direction=outgoing after  https://github.com/ansible/ansible/issues/53854
+
+    - name: Allow ssh in
+      ufw: rule=limit name=OpenSSH
+
+    - name: Disable default in
+      ufw: direction=incoming policy=deny
+
+    - name: Open port
+      ufw: rule=allow port={{ proxy_port }}
+
+    - name: Reload ufw
+      ufw: state=reloaded
